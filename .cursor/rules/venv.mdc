@@ -1,0 +1,23 @@
+---
+description: Always run Python tooling through the project virtualenv
+alwaysApply: true
+---
+
+# Use the project venv
+
+This repo has `.venv` at the project root (Python 3.12+). **Always** use it for Python, pip, pytest, ruff, uvicorn, and other Python CLIs. Never use the first `python`/`pip` on PATH — on Windows that is often Store Python 3.10 and will install into the wrong environment.
+
+```powershell
+# ✅ GOOD
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check --fix .
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+
+# ❌ BAD
+pip install -e ".[dev]"
+python -m pytest
+py -m pip install ...
+```
+
+If `.venv` is missing, create it with Python 3.12+ (`py -3.13 -m venv .venv` or `uv venv --python 3.13`) and install with `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`.

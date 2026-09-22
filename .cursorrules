@@ -1,0 +1,1150 @@
+# Cursor Rules — FastAPI \+ Kafka
+
+ ## 1\. Architecture
+
+ Use a modular, layered architecture with clear separation between API, business logic, domain models, persistence, messaging, external services, infrastructure, and observability.
+
+```
+project/
+├── app/
+│   ├── main.py
+│   │
+│   ├── api/
+│   │   ├── routes/
+│   │   │   ├── health.py
+│   │   │   └── users.py
+│   │   ├── dependencies.py
+│   │   ├── middleware/
+│   │   │   ├── request_id.py
+│   │   │   └── logging.py
+│   │   └── errors.py
+│   │
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── exceptions.py
+│   │   └── constants.py
+│   │
+│   ├── domain/
+│   │   ├── models/
+│   │   └── schemas/
+│   │
+│   ├── services/
+│   │   ├── user_service.py
+│   │   └── ...
+│   │
+│   ├── repositories/
+│   │   ├── user_repository.py
+│   │   └── ...
+│   │
+│   ├── infrastructure/
+│   │   ├── clients/
+│   │   │   ├── base.py
+│   │   │   ├── payment/
+│   │   │   │   ├── client.py
+│   │   │   │   ├── schemas.py
+│   │   │   │   └── exceptions.py
+│   │   │   ├── user/
+│   │   │   │   ├── client.py
+│   │   │   │   ├── schemas.py
+│   │   │   │   └── exceptions.py
+│   │   │   └── ...
+│   │   │
+│   │   ├── http/
+│   │   │   ├── client.py
+│   │   │   ├── errors.py
+│   │   │   └── middleware.py
+│   │   │
+│   │   ├── resilience/
+│   │   │   ├── retry.py
+│   │   │   ├── circuit_breaker.py
+│   │   │   ├── timeout.py
+│   │   │   ├── backoff.py
+│   │   │   └── policies.py
+│   │   │
+│   │   ├── kafka/
+│   │   │   ├── consumer.py
+│   │   │   ├── producer.py
+│   │   │   ├── topics.py
+│   │   │   ├── handlers/
+│   │   │   │   ├── user_created.py
+│   │   │   │   └── ...
+│   │   │   └── schemas/
+│   │   │       └── events.py
+│   │   │
+│   │   ├── serialization/
+│   │   │   ├── json.py
+│   │   │   └── parsing.py
+│   │   │
+│   │   └── database/
+│   │       ├── session.py
+│   │       └── migrations/
+│   │
+│   ├── observability/
+│   │   ├── logging.py
+│   │   ├── request_context.py
+│   │   ├── metrics.py
+│   │   └── tracing.py
+│   │
+│   └── ...
+│
+├── tests/
+│   ├── unit/
+│   │   ├── services/
+│   │   ├── clients/
+│   │   ├── resilience/
+│   │   └── kafka/
+│   ├── integration/
+│   │   ├── api/
+│   │   ├── kafka/
+│   │   ├── clients/
+│   │   └── database/
+│   └── fixtures/
+│
+├── scripts/
+├── .env.example
+├── pyproject.toml
+├── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
+
+ ## 2\. Layer Responsibilities
+
+ ### API
+
+ `app/api/`
+
+ Responsible for HTTP concerns only:
+
+ - Routing.
+- Request validation.
+- Response serialization.
+- Dependency injection.
+- HTTP middleware.
+- HTTP-specific exception handling.
+
+ Do not put business logic in API routes.
+
+ Preferred flow:
+
+```
+HTTP Request
+    ↓
+Middleware
+    ↓
+Route
+    ↓
+Service
+    ↓
+Repository / Client
+    ↓
+Response
+```
+
+ ### Domain
+
+ `app/domain/`
+
+ Contains business concepts that should not depend on transport or infrastructure.
+
+ Examples:
+
+ - Domain models.
+- Business schemas.
+- Value objects.
+- Domain-specific types.
+
+ Do not make domain code depend on:
+
+ - FastAPI.
+- Kafka.
+- HTTP clients.
+- Database implementations.
+- Logging frameworks.
+
+ ### Services
+
+ `app/services/`
+
+ Contains application and business logic.
+
+ Services should:
+
+ - Coordinate business operations.
+- Call repositories.
+- Call external clients.
+- Publish events when appropriate.
+- Enforce business rules.
+
+ Services should not:
+
+ - Handle HTTP requests directly.
+- Contain SQL queries.
+- Implement HTTP retry logic.
+- Implement circuit breakers.
+- Manage Kafka polling.
+- Generate request IDs.
+- Configure logging.
+
+ ### Repositories
+
+ `app/repositories/`
+
+ Responsible for database persistence.
+
+ Repositories should:
+
+ - Encapsulate database queries.
+- Handle persistence operations.
+- Keep SQL/database-specific logic isolated.
+
+ Repositories should not contain business decisions.
+
+ ## 3\. Infrastructure
+
+ `app/infrastructure/`
+
+ Contains technical integrations and infrastructure implementations.
+
+ Examples:
+
+ - HTTP clients.
+- External service clients.
+- Kafka.
+- Database implementations.
+- Serialization.
+- Retry mechanisms.
+- Circuit breakers.
+- Timeouts.
+- Backoff strategies.
+
+ Infrastructure should be reusable and independent from individual business services where possible.
+
+ Do not duplicate infrastructure logic between services.
+
+ ## 4\. External Service Clients
+
+ All external API integrations must be implemented under:
+
+```
+app/infrastructure/clients/
+```
+
+ Organize clients by external system:
+
+```
+clients/
+├── payment/
+│   ├── client.py
+│   ├── schemas.py
+│   └── exceptions.py
+├── user/
+│   ├── client.py
+│   ├── schemas.py
+│   └── exceptions.py
+└── email/
+    ├── client.py
+    ├── schemas.py
+    └── exceptions.py
+```
+
+ A client is responsible for communicating with an external service.
+
+ Example:
+
+```
+class PaymentClient:
+    async def charge(self, request: ChargeRequest) -> ChargeResponse:
+        ...
+```
+
+ Business logic must remain in services.
+
+ Example dependency flow:
+
+```
+OrderService
+    ↓
+PaymentClient
+    ↓
+HTTP Client
+    ↓
+Retry / Timeout / Circuit Breaker
+    ↓
+External API
+```
+
+ Services should not know whether an external service uses:
+
+ - HTTP.
+- REST.
+- gRPC.
+- GraphQL.
+- A specific Python HTTP library.
+
+ ## 5\. HTTP Client
+
+ Create a shared HTTP infrastructure layer:
+
+```
+app/infrastructure/http/
+├── client.py
+├── errors.py
+└── middleware.py
+```
+
+ The shared HTTP client should centralize common behavior such as:
+
+ - Connection management.
+- Connection pooling.
+- Default headers.
+- Timeouts.
+- Request/response logging.
+- Error normalization.
+- Request ID propagation.
+- Authentication hooks where appropriate.
+
+ Individual external clients should reuse this infrastructure instead of creating their own HTTP clients independently.
+
+ ## 6\. Resilience
+
+ Cross-cutting resilience mechanisms belong in:
+
+```
+app/infrastructure/resilience/
+├── retry.py
+├── circuit_breaker.py
+├── timeout.py
+├── backoff.py
+└── policies.py
+```
+
+ Resilience mechanisms must be generic and reusable.
+
+ Supported concerns include:
+
+ - Retry.
+- Exponential backoff.
+- Jitter.
+- Circuit breaking.
+- Timeouts.
+- Retryable exception classification.
+- Retryable HTTP status codes.
+
+ Do not implement custom retry loops inside every external client.
+
+ Avoid duplicated patterns such as:
+
+```
+for attempt in range(3):
+    ...
+```
+
+ inside individual clients when a shared retry mechanism already exists.
+
+ Resilience configuration should be explicit.
+
+ Example concepts:
+
+```
+timeout = 5 seconds
+max_retries = 3
+backoff = exponential
+jitter = enabled
+circuit_breaker = enabled
+```
+
+ Do not automatically retry every error.
+
+ Classify failures into:
+
+```
+Retryable
+Non-retryable
+```
+
+ Examples of potentially retryable failures:
+
+ - Connection failures.
+- Temporary network failures.
+- Timeouts.
+- Selected 5xx responses.
+- Selected rate-limit responses.
+
+ Examples of generally non-retryable failures:
+
+ - Invalid request.
+- Authentication failure.
+- Authorization failure.
+- Validation errors.
+- Invalid business data.
+
+ The exact policy depends on the external service.
+
+ ## 7\. Kafka
+
+ Kafka infrastructure belongs under:
+
+```
+app/infrastructure/kafka/
+```
+
+ The Kafka consumer is responsible for:
+
+ - Receiving messages.
+- Deserializing messages.
+- Validating event schemas.
+- Routing events.
+- Managing offsets.
+- Handling consumer lifecycle.
+- Handling transport-level errors.
+
+ The Kafka consumer must not contain business logic.
+
+ Preferred flow:
+
+```
+Kafka
+  ↓
+Consumer
+  ↓
+Deserialize
+  ↓
+Validate Event
+  ↓
+Handler
+  ↓
+Service
+  ↓
+Repository / External Client
+```
+
+ ## 8\. Kafka Handlers
+
+ Create separate handlers for event types:
+
+```
+handlers/
+├── user_created.py
+├── order_created.py
+├── payment_completed.py
+└── ...
+```
+
+ Handlers should remain thin.
+
+ Example:
+
+```
+async def handle(event: UserCreatedEvent) -> None:
+    await user_service.process_user_created(event)
+```
+
+ Do not put complex business logic, database queries, retry mechanisms, or HTTP calls directly into Kafka handlers.
+
+ ## 9\. Kafka Reliability
+
+ Kafka consumers must account for:
+
+ - At-least-once delivery.
+- Duplicate events.
+- Consumer restarts.
+- Retryable failures.
+- Non-retryable failures.
+- Dead-letter topics where appropriate.
+- Offset management.
+- Idempotent processing.
+
+ Event handlers should be designed to safely process the same event more than once.
+
+ Events should have a stable identifier:
+
+```
+event_id: UUID
+```
+
+ Use the event ID when implementing idempotency.
+
+ Do not assume that a Kafka message will only ever be processed once.
+
+ ## 10\. Serialization and Parsing
+
+ Parsing and serialization utilities belong under:
+
+```
+app/infrastructure/serialization/
+```
+
+ Examples:
+
+```
+serialization/
+├── json.py
+├── parsing.py
+└── ...
+```
+
+ Keep parsing logic separate from business logic.
+
+ Do not scatter JSON parsing, date parsing, enum conversion, or generic serialization logic throughout services.
+
+ Business-specific validation belongs closer to the relevant domain/schema.
+
+ ## 11\. Request ID
+
+ Request ID handling is a cross-cutting concern.
+
+ Use:
+
+```
+app/api/middleware/request_id.py
+app/observability/request_context.py
+```
+
+ The request lifecycle should be:
+
+```
+Incoming HTTP Request
+        ↓
+Request ID Middleware
+        ↓
+Extract existing ID or generate one
+        ↓
+Store ID in request context
+        ↓
+Application code
+        ↓
+Add ID to response
+```
+
+ If the incoming request already contains a valid request ID, propagate it according to the application's policy.
+
+ If no request ID exists, generate one.
+
+ The request ID should be returned to the caller in the response header.
+
+ Example:
+
+```
+X-Request-ID: 8f7c...
+```
+
+ Do not require every service method to accept `request_id` as an argument just for logging purposes.
+
+ Use request context for cross-cutting propagation.
+
+ ## 12\. Logging
+
+ Logging infrastructure belongs under:
+
+```
+app/observability/
+```
+
+ Centralize logging configuration.
+
+ Logs should automatically include contextual information when available:
+
+```
+request_id
+trace_id
+span_id
+service
+environment
+event_id
+kafka_topic
+kafka_partition
+kafka_offset
+```
+
+ Application code should be able to write:
+
+```
+logger.info("Processing payment")
+```
+
+ without manually passing the request ID to every log statement.
+
+ Never log:
+
+ - Passwords.
+- API keys.
+- Access tokens.
+- Refresh tokens.
+- Secrets.
+- Sensitive credentials.
+- Sensitive personal information.
+
+ Use structured logging rather than manually concatenated strings.
+
+ ## 13\. Metrics and Tracing
+
+ Observability concerns belong under:
+
+```
+app/observability/
+├── logging.py
+├── request_context.py
+├── metrics.py
+└── tracing.py
+```
+
+ Metrics should be reusable across API, Kafka, database, and external service integrations.
+
+ Useful metrics may include:
+
+```
+HTTP request count
+HTTP request latency
+HTTP error count
+Kafka messages consumed
+Kafka processing latency
+Kafka processing failures
+External API latency
+External API failures
+Retry count
+Circuit breaker state
+Database query latency
+```
+
+ Tracing should propagate correlation information across:
+
+```
+HTTP
+  ↓
+Service
+  ↓
+External Client
+  ↓
+Kafka
+```
+
+ Do not add tracing code independently to every business operation if it can be handled by shared instrumentation.
+
+ ## 14\. Core
+
+ Keep `app/core/` intentionally small.
+
+ It should contain foundational application configuration and primitives such as:
+
+```
+core/
+├── config.py
+├── exceptions.py
+└── constants.py
+```
+
+ Do not use `core/` as a generic dumping ground.
+
+ Avoid creating files such as:
+
+```
+core/utils.py
+core/helpers.py
+core/common.py
+core/misc.py
+```
+
+ unless there is a clear architectural reason.
+
+ If functionality has a specific responsibility, put it in the appropriate module.
+
+ For example:
+
+```
+Retry logic          → infrastructure/resilience/
+Request context      → observability/
+HTTP client          → infrastructure/http/
+External API client  → infrastructure/clients/
+Kafka                → infrastructure/kafka/
+Serialization        → infrastructure/serialization/
+Configuration        → core/
+```
+
+ ## 15\. Cross-Cutting Concerns
+
+ Cross-cutting functionality must have one shared implementation whenever practical.
+
+ Do not duplicate:
+
+ - Retry logic.
+- Circuit breakers.
+- Timeout handling.
+- Request ID generation.
+- Request ID propagation.
+- Logging configuration.
+- HTTP client configuration.
+- Serialization.
+- Metrics.
+- Tracing.
+- Error normalization.
+
+ Before implementing a cross-cutting capability, search the existing codebase for an existing implementation.
+
+ Prefer extending an existing abstraction over creating a second competing implementation.
+
+ ## 16\. Dependency Direction
+
+ Dependencies should generally flow from higher-level application logic toward abstractions/infrastructure.
+
+ Preferred flow:
+
+```
+API
+ ↓
+Services
+ ↓
+Repositories / Clients
+ ↓
+Infrastructure
+```
+
+ Kafka:
+
+```
+Kafka Consumer
+ ↓
+Event Handler
+ ↓
+Service
+ ↓
+Repository / Client
+```
+
+ Do not allow infrastructure concerns to leak upward unnecessarily.
+
+ Avoid:
+
+```
+Domain → FastAPI
+Domain → Kafka
+Domain → HTTP library
+Domain → Database implementation
+Domain → Logging framework
+
+Repository → Service
+Infrastructure → API routes
+```
+
+ Avoid circular dependencies.
+
+ ## 17\. Dependency Injection
+
+ Use dependency injection for:
+
+ - Services.
+- Repositories.
+- External clients.
+- Configuration.
+- Infrastructure components.
+
+ Avoid creating external clients directly inside business services.
+
+ Prefer:
+
+```
+class OrderService:
+    def __init__(
+        self,
+        payment_client: PaymentClient,
+        order_repository: OrderRepository,
+    ):
+        self.payment_client = payment_client
+        self.order_repository = order_repository
+```
+
+ instead of:
+
+```
+class OrderService:
+    def __init__(self):
+        self.payment_client = PaymentClient()
+        self.order_repository = OrderRepository()
+```
+
+ This makes components easier to test and replace.
+
+ ## 18\. Configuration
+
+ All environment-specific configuration belongs in:
+
+```
+app/core/config.py
+```
+
+ Use environment variables for:
+
+ - Database URLs.
+- Kafka brokers.
+- Kafka credentials.
+- External API URLs.
+- API credentials.
+- Timeouts.
+- Retry configuration.
+- Circuit breaker configuration.
+- Environment settings.
+
+ Never hard-code secrets.
+
+ Maintain:
+
+```
+.env.example
+```
+
+ with safe placeholder values.
+
+ ## 19\. Error Handling
+
+ Define application-specific exceptions in:
+
+```
+app/core/exceptions.py
+```
+
+ Use appropriate exception boundaries.
+
+ HTTP errors should be translated at the API boundary.
+
+ Kafka errors should be handled at the Kafka boundary.
+
+ External service errors should be normalized by the client/infrastructure layer.
+
+ Business services should work with meaningful application/domain errors rather than raw exceptions from libraries such as `httpx`, Kafka clients, or database drivers.
+
+ Do not expose internal stack traces or infrastructure details in API responses.
+
+ ## 20\. Testing
+
+ Tests should mirror architectural responsibilities:
+
+```
+tests/
+├── unit/
+│   ├── services/
+│   ├── clients/
+│   ├── resilience/
+│   ├── repositories/
+│   └── kafka/
+│
+├── integration/
+│   ├── api/
+│   ├── clients/
+│   ├── kafka/
+│   └── database/
+│
+└── fixtures/
+```
+
+ Unit tests should not require real external infrastructure.
+
+ Test independently:
+
+ - Services.
+- External clients.
+- Retry policies.
+- Circuit breakers.
+- Kafka handlers.
+- Repositories where practical.
+
+ Integration tests may use real:
+
+ - Kafka.
+- Database.
+- External-service test environments.
+- HTTP infrastructure.
+
+ Test important failure cases:
+
+ - Timeout.
+- Retry exhaustion.
+- Circuit breaker open.
+- Invalid response.
+- External service unavailable.
+- Duplicate Kafka event.
+- Malformed Kafka event.
+- Database failure.
+
+ ## 21\. Python Standards
+
+ Use Python 3.12+.
+
+ Use type hints throughout the codebase.
+
+ Prefer:
+
+```
+async def process() -> Result:
+    ...
+```
+
+ for I/O-bound asynchronous operations.
+
+ Use `ruff` for linting and formatting.
+
+ Use `pytest` for testing.
+
+ Prefer small, focused functions.
+
+ Prefer composition over inheritance.
+
+ Avoid unnecessary abstractions.
+
+ Do not introduce a class when a simple function is sufficient.
+
+ Do not introduce a framework or dependency without a clear reason.
+
+ ## 22\. Naming
+
+ Use:
+
+```
+snake_case
+```
+
+ for:
+
+ - Files.
+- Functions.
+- Variables.
+- Modules.
+
+ Use:
+
+```
+PascalCase
+```
+
+ for classes.
+
+ Use:
+
+```
+UPPER_CASE
+```
+
+ for constants.
+
+ Examples:
+
+```
+payment_client.py
+circuit_breaker.py
+request_context.py
+user_service.py
+```
+
+ ## 23\. Imports
+
+ Prefer absolute imports:
+
+```
+from app.services.user_service import UserService
+from app.infrastructure.clients.payment.client import PaymentClient
+```
+
+ Avoid deeply nested relative imports.
+
+ Keep imports organized and let `ruff` enforce import formatting.
+
+ ## 24\. API Versioning
+
+ Use explicit API versions when the API is expected to evolve:
+
+```
+/api/v1/users
+/api/v1/orders
+```
+
+ Keep API routes organized by responsibility:
+
+```
+app/api/routes/
+├── health.py
+├── users.py
+├── orders.py
+└── ...
+```
+
+ ## 25\. Application Lifecycle
+
+ `app/main.py` should primarily assemble the application.
+
+ Application startup/shutdown should manage infrastructure lifecycle such as:
+
+ - Database connections.
+- HTTP client pools.
+- Kafka consumers.
+- Kafka producers.
+- Observability resources.
+
+ Avoid putting business logic in `main.py`.
+
+ ## 26\. New Feature Workflow
+
+ When implementing a new feature:
+
+```
+1. Understand the domain requirement.
+2. Check existing domain models/schemas.
+3. Check existing services.
+4. Check existing repositories.
+5. Check existing external clients.
+6. Check existing infrastructure/cross-cutting utilities.
+7. Implement the business logic.
+8. Add API/Kafka integration if required.
+9. Add tests.
+10. Update configuration if required.
+11. Update documentation if required.
+```
+
+ Before creating a new abstraction, search the repository for an existing abstraction with the same responsibility.
+
+ ## 27\. Adding a New External Service
+
+ For a new external API:
+
+```
+1. Create the client under infrastructure/clients/.
+2. Define external request/response schemas.
+3. Define client-specific exceptions.
+4. Reuse the shared HTTP client.
+5. Reuse shared timeout/retry/circuit-breaker infrastructure.
+6. Add appropriate resilience policy.
+7. Expose the client through dependency injection.
+8. Call the client from a service.
+9. Add unit tests for the client.
+10. Add integration tests where appropriate.
+```
+
+ Do not implement the same HTTP/retry/circuit-breaker infrastructure inside the new client.
+
+ ## 28\. Adding a New Kafka Event
+
+ For a new event:
+
+```
+1. Define the event schema.
+2. Register/define the topic.
+3. Implement the handler.
+4. Call the appropriate service from the handler.
+5. Define retry/DLQ behavior.
+6. Ensure processing is idempotent.
+7. Add unit tests.
+8. Add integration tests where appropriate.
+```
+
+ Do not put business logic inside the Kafka consumer.
+
+ ## 29\. Keep Modules Focused
+
+ Each module should have one clear responsibility.
+
+ Avoid generic modules such as:
+
+```
+utils.py
+helpers.py
+common.py
+misc.py
+```
+
+ Prefer specific modules:
+
+```
+datetime_utils.py
+kafka_serialization.py
+request_context.py
+retry.py
+circuit_breaker.py
+pagination.py
+```
+
+ The location and name of a module should make its responsibility obvious.
+
+ ## 30\. Cursor Rules
+
+ When modifying the project:
+
+ - Inspect the existing architecture before creating files.
+- Follow the existing folder structure.
+- Reuse existing abstractions.
+- Do not create duplicate clients.
+- Do not create duplicate retry implementations.
+- Do not create duplicate logging/request-ID implementations.
+- Do not move files unless necessary.
+- Keep changes focused.
+- Do not introduce dependencies without justification.
+- Preserve existing public APIs unless explicitly asked to change them.
+- Add tests for new business logic.
+- Add tests for important infrastructure behavior.
+- Update `.env.example` when adding configuration.
+- Update Kafka schemas when changing event contracts.
+- Never add secrets to source code.
+- Do not put business logic into middleware.
+- Do not put business logic into Kafka consumers.
+- Do not put business logic into external clients.
+- Do not put database queries into services.
+- Do not put HTTP-specific behavior into domain models.
+- Prefer existing shared infrastructure over feature-specific implementations.
+
+ ## 31\. Architectural Principle
+
+ The primary goal is to keep business logic independent from infrastructure.
+
+ Business logic should be understandable without knowing:
+
+ - Which HTTP library is being used.
+- Which Kafka client is being used.
+- How retries are implemented.
+- How circuit breaking is implemented.
+- How logs are formatted.
+- How request IDs are generated.
+- How metrics are exported.
+- Which database driver is being used.
+
+ Infrastructure should provide these capabilities to the application rather than forcing business logic to implement them.
+
+ The preferred architecture is:
+
+```
+                         ┌─────────────────┐
+                         │       API       │
+                         └────────┬────────┘
+                                  ↓
+                         ┌─────────────────┐
+                         │    Services     │
+                         └───────┬─────────┘
+                                 │
+                  ┌──────────────┴──────────────┐
+                  ↓                             ↓
+          ┌───────────────┐             ┌───────────────┐
+          │ Repositories  │             │ External      │
+          │               │             │ Clients       │
+          └───────┬───────┘             └───────┬───────┘
+                  │                             ↓
+                  ↓                     ┌─────────────────┐
+             Database                   │ HTTP + Resilience│
+                                        └─────────────────┘
+
+Kafka
+  ↓
+Consumer
+  ↓
+Event Handler
+  ↓
+Service
+  ↓
+Repository / External Client
+
+Cross-cutting:
+  Request ID
+  Logging
+  Metrics
+  Tracing
+  Configuration
+  Error handling
+
+        ↓
+  Shared infrastructure
+```

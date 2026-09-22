@@ -1,0 +1,2 @@
+# Alembic migrations for commerce tables.
+# Local/SQLite startup uses SQLAlchemy create_all; run `alembic upgrade head` for Postgres.
