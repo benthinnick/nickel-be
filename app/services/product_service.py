@@ -3,6 +3,7 @@ from uuid import UUID
 from app.core.exceptions import ProductNotFoundError
 from app.domain.models.product import Product, ProductStatus
 from app.infrastructure.kafka.schemas.events import ProductCreatedPayload
+from app.infrastructure.sanitization.html import sanitize_product_fields
 from app.repositories.product_repository import ProductRepository
 
 
@@ -23,17 +24,23 @@ class ProductService:
         existing = await self._repository.get_by_id(payload.product_id)
         if existing is not None:
             return existing
-        product = Product(
-            id=payload.product_id,
-            seller_id=payload.seller_id,
+        sku, name, description, image_url = sanitize_product_fields(
             sku=payload.sku,
             name=payload.name,
             description=payload.description,
+            image_url=payload.image_url,
+        )
+        product = Product(
+            id=payload.product_id,
+            seller_id=payload.seller_id,
+            sku=sku,
+            name=name,
+            description=description,
             price=payload.price,
             currency=payload.currency,
             status=ProductStatus.ACTIVE,
             stock=payload.stock,
-            image_url=payload.image_url,
+            image_url=image_url,
         )
         await self._repository.add(product)
         return product

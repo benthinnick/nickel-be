@@ -19,6 +19,6 @@ class Seller:
 @dataclass(frozen=True)
 class SellerMembership:
     seller_id: UUID
-    user_id: UUID
+    customer_id: UUID
     role: SellerRole
     created_at: datetime

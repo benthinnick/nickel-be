@@ -3,15 +3,22 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies import get_product_service
-from app.core.constants import DEFAULT_PAGE_LIMIT, DEFAULT_PAGE_OFFSET, MAX_PAGE_LIMIT
+from app.api.dependencies import get_product_service, get_search_service
+from app.core.constants import (
+    DEFAULT_PAGE_LIMIT,
+    DEFAULT_PAGE_OFFSET,
+    MAX_PAGE_LIMIT,
+    PRODUCT_AUTOCOMPLETE_LIMIT,
+)
 from app.domain.schemas.product import (
+    ProductAutocompleteResponse,
     ProductListResponse,
     ProductResponse,
     product_list_to_response,
     product_to_response,
 )
 from app.services.product_service import ProductService
+from app.services.search_service import SearchService
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -24,6 +31,26 @@ async def list_products(
 ) -> ProductListResponse:
     products, total = await service.list_products(limit=limit, offset=offset)
     return product_list_to_response(products, total=total, limit=limit, offset=offset)
+
+
+@router.get("/search", response_model=ProductListResponse)
+async def search_products(
+    service: Annotated[SearchService, Depends(get_search_service)],
+    q: str = Query(min_length=1),
+    limit: int = Query(default=DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
+    offset: int = Query(default=DEFAULT_PAGE_OFFSET, ge=0),
+) -> ProductListResponse:
+    products, total = await service.search_by_name(q, limit=limit, offset=offset)
+    return product_list_to_response(products, total=total, limit=limit, offset=offset)
+
+
+@router.get("/search/autocomplete", response_model=ProductAutocompleteResponse)
+async def autocomplete_products(
+    service: Annotated[SearchService, Depends(get_search_service)],
+    q: str = Query(min_length=1),
+) -> ProductAutocompleteResponse:
+    queries = await service.suggest_names(q, limit=PRODUCT_AUTOCOMPLETE_LIMIT)
+    return ProductAutocompleteResponse(queries=queries)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from app.core.constants import PRODUCT_CREATED_EVENT
+from app.infrastructure.clients.search.client import InMemorySearchIndex
 from app.infrastructure.kafka.handlers.product_created import create_handler
 from app.infrastructure.kafka.schemas.events import EventEnvelope
 from app.repositories.product_repository import (
@@ -33,12 +34,15 @@ async def test_product_created_handler_inserts_and_is_idempotent(session_factory
             "currency": "ILS",
             "stock": 7,
             "image_url": None,
-            "created_by_user_id": str(uuid4()),
+            "created_by_customer_id": str(uuid4()),
         },
     )
-    handler = create_handler(session_factory)
+    index = InMemorySearchIndex()
+    handler = create_handler(session_factory, index)
     await handler(event)
     await handler(event)
+
+    hits, total = await index.search_by_name("Kafka", limit=10, offset=0)
 
     async with session_factory() as session:
         product = await ProductService(SqlProductRepository(session)).get_product(product_id)
@@ -46,3 +50,5 @@ async def test_product_created_handler_inserts_and_is_idempotent(session_factory
         assert product.stock == 7
         assert product.seller_id == DEMO_SELLER_ID
         assert product.price == Decimal("18.50")
+        assert total == 1
+        assert hits[0].id == product_id

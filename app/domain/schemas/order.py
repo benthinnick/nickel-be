@@ -23,7 +23,7 @@ class OrderResponse(BaseModel):
 
     id: UUID
     session_id: str
-    user_id: UUID | None
+    customer_id: UUID | None
     status: OrderStatus
     currency: str
     total: Decimal
@@ -36,7 +36,7 @@ def order_to_response(order: Order) -> OrderResponse:
     return OrderResponse(
         id=order.id,
         session_id=order.session_id,
-        user_id=order.user_id,
+        customer_id=order.customer_id,
         status=order.status,
         currency=order.currency,
         total=order.total,

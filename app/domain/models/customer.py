@@ -4,7 +4,8 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class User:
+class Customer:
     id: UUID
+    keycloak_sub: str
     email: str
     created_at: datetime

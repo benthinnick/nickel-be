@@ -1,54 +1,20 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 
+from app.infrastructure.auth.oidc import encode_test_token
 from app.repositories.product_repository import COFFEE_ID, TEA_ID
-
-
-def _register(api_client: TestClient, email: str = "ada@example.com") -> dict:
-    response = api_client.post(
-        "/api/v1/users",
-        json={"email": email, "password": "secret123"},
-    )
-    assert response.status_code == 201
-    return response.json()
-
-
-def _token(api_client: TestClient, email: str = "ada@example.com") -> str:
-    response = api_client.post(
-        "/api/v1/auth/token",
-        data={"username": email, "password": "secret123"},
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
-
-
-def test_register_duplicate_email_returns_409(api_client: TestClient) -> None:
-    _register(api_client)
-    response = api_client.post(
-        "/api/v1/users",
-        json={"email": "ada@example.com", "password": "secret123"},
-    )
-
-    assert response.status_code == 409
-    assert response.json()["code"] == "email_already_taken"
-
-
-def test_login_rejects_bad_password(api_client: TestClient) -> None:
-    _register(api_client)
-    response = api_client.post(
-        "/api/v1/auth/token",
-        data={"username": "ada@example.com", "password": "nope"},
-    )
-
-    assert response.status_code == 401
-    assert response.json()["code"] == "invalid_credentials"
+from tests.fixtures.auth import auth_headers, provision_customer
 
 
 def test_me_requires_bearer_token(api_client: TestClient) -> None:
-    missing = api_client.get("/api/v1/users/me")
-    invalid = api_client.get("/api/v1/users/me", headers={"Authorization": "Bearer not-a-jwt"})
-    _register(api_client)
-    token = _token(api_client)
-    me = api_client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    missing = api_client.get("/api/v1/customers/me")
+    invalid = api_client.get(
+        "/api/v1/customers/me",
+        headers={"Authorization": "Bearer not-a-jwt"},
+    )
+    _, headers = provision_customer(api_client, "ada@example.com")
+    me = api_client.get("/api/v1/customers/me", headers=headers)
 
     assert missing.status_code == 401
     assert invalid.status_code == 401
@@ -56,22 +22,59 @@ def test_me_requires_bearer_token(api_client: TestClient) -> None:
     assert me.json()["email"] == "ada@example.com"
 
 
-def test_authenticated_cart_is_separate_from_cookie_cart(api_client: TestClient) -> None:
-    _register(api_client)
-    token = _token(api_client)
-    headers = {"Authorization": f"Bearer {token}"}
-    api_client.put(
-        "/api/v1/cart/items",
-        json={"product_id": str(COFFEE_ID), "quantity": 1},
+def test_expired_token_is_rejected(api_client: TestClient) -> None:
+    token = encode_test_token(
+        subject="ada",
+        email="ada@example.com",
+        expires_at=datetime.now(UTC) - timedelta(minutes=1),
     )
-    api_client.put(
-        "/api/v1/cart/items",
-        json={"product_id": str(TEA_ID), "quantity": 2},
-        headers=headers,
+    response = api_client.get(
+        "/api/v1/customers/me",
+        headers={"Authorization": f"Bearer {token}"},
     )
 
-    anonymous = api_client.get("/api/v1/cart")
-    authed = api_client.get("/api/v1/cart", headers=headers)
+    assert response.status_code == 401
+    assert response.json()["code"] == "unauthorized"
+
+
+def test_wrong_issuer_token_is_rejected(api_client: TestClient) -> None:
+    token = encode_test_token(
+        subject="ada",
+        email="ada@example.com",
+        issuer="http://evil.example/realms/shekel",
+    )
+    response = api_client.get(
+        "/api/v1/customers/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_first_bearer_request_provisions_customer(api_client: TestClient) -> None:
+    headers = auth_headers("first@example.com")
+    me = api_client.get("/api/v1/customers/me", headers=headers)
+    again = api_client.get("/api/v1/customers/me", headers=headers)
+
+    assert me.status_code == 200
+    assert again.status_code == 200
+    assert again.json()["id"] == me.json()["id"]
+
+
+def test_authenticated_cart_is_separate_from_cookie_cart(api_client: TestClient) -> None:
+    _, headers = provision_customer(api_client, "ada@example.com")
+    with TestClient(api_client.app) as guest:
+        guest.put(
+            "/api/v1/cart/items",
+            json={"product_id": str(COFFEE_ID), "quantity": 1},
+        )
+        api_client.put(
+            "/api/v1/cart/items",
+            json={"product_id": str(TEA_ID), "quantity": 2},
+            headers=headers,
+        )
+        anonymous = guest.get("/api/v1/cart")
+        authed = api_client.get("/api/v1/cart", headers=headers)
 
     assert anonymous.json()["items"][0]["product_id"] == str(COFFEE_ID)
     assert authed.json()["items"][0]["product_id"] == str(TEA_ID)
@@ -84,15 +87,13 @@ def test_invalid_bearer_on_cart_returns_401(api_client: TestClient) -> None:
     assert response.json()["code"] == "unauthorized"
 
 
-def test_login_merges_session_cart_into_user_cart(api_client: TestClient) -> None:
+def test_authenticated_request_merges_session_cart(api_client: TestClient) -> None:
     api_client.put(
         "/api/v1/cart/items",
         json={"product_id": str(COFFEE_ID), "quantity": 2},
     )
-    _register(api_client)
-    token = _token(api_client)
-    cart = api_client.get("/api/v1/cart", headers={"Authorization": f"Bearer {token}"})
-
+    _, headers = provision_customer(api_client, "ada@example.com")
+    cart = api_client.get("/api/v1/cart", headers=headers)
     anonymous = api_client.get("/api/v1/cart")
 
     assert cart.json()["items"][0]["product_id"] == str(COFFEE_ID)
@@ -100,10 +101,8 @@ def test_login_merges_session_cart_into_user_cart(api_client: TestClient) -> Non
     assert anonymous.json()["items"] == []
 
 
-def test_authenticated_checkout_sets_user_id(api_client: TestClient) -> None:
-    user = _register(api_client)
-    token = _token(api_client)
-    headers = {"Authorization": f"Bearer {token}"}
+def test_authenticated_checkout_sets_customer_id(api_client: TestClient) -> None:
+    customer, headers = provision_customer(api_client, "ada@example.com")
     api_client.put(
         "/api/v1/cart/items",
         json={"product_id": str(COFFEE_ID), "quantity": 1},
@@ -112,4 +111,4 @@ def test_authenticated_checkout_sets_user_id(api_client: TestClient) -> None:
     checkout = api_client.post("/api/v1/cart/checkout", headers=headers)
 
     assert checkout.status_code == 201
-    assert checkout.json()["user_id"] == user["id"]
+    assert checkout.json()["customer_id"] == customer["id"]

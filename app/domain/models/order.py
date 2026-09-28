@@ -26,7 +26,7 @@ class OrderItem:
 class Order:
     id: UUID
     session_id: str
-    user_id: UUID | None
+    customer_id: UUID | None
     status: OrderStatus
     currency: str
     total: Decimal

@@ -1,24 +1,12 @@
 from fastapi.testclient import TestClient
 
 from app.repositories.product_repository import COFFEE_ID
-
-
-def _register(api_client: TestClient, email: str) -> dict:
-    response = api_client.post(
-        "/api/v1/users",
-        json={"email": email, "password": "secret123"},
-    )
-    assert response.status_code == 201
-    return response.json()
+from tests.fixtures.auth import provision_customer
 
 
 def _headers(api_client: TestClient, email: str) -> dict[str, str]:
-    token = api_client.post(
-        "/api/v1/auth/token",
-        data={"username": email, "password": "secret123"},
-    )
-    assert token.status_code == 200
-    return {"Authorization": f"Bearer {token.json()['access_token']}"}
+    _, headers = provision_customer(api_client, email)
+    return headers
 
 
 def _create_seller(
@@ -32,8 +20,8 @@ def _create_seller(
 
 
 def test_outsider_cannot_change_seller_products(api_client: TestClient) -> None:
-    _register(api_client, "owner@example.com")
-    _register(api_client, "outsider@example.com")
+    _headers(api_client, "owner@example.com")
+    _headers(api_client, "outsider@example.com")
     owner = _headers(api_client, "owner@example.com")
     outsider = _headers(api_client, "outsider@example.com")
     seller = _create_seller(api_client, owner)
@@ -60,8 +48,8 @@ def test_outsider_cannot_change_seller_products(api_client: TestClient) -> None:
 
 
 def test_member_creates_product_via_event_and_it_is_public(api_client: TestClient) -> None:
-    _register(api_client, "owner@example.com")
-    _register(api_client, "member@example.com")
+    _headers(api_client, "owner@example.com")
+    _headers(api_client, "member@example.com")
     owner = _headers(api_client, "owner@example.com")
     member = _headers(api_client, "member@example.com")
     seller = _create_seller(api_client, owner)
@@ -94,7 +82,7 @@ def test_member_creates_product_via_event_and_it_is_public(api_client: TestClien
 
 
 def test_hide_removes_product_from_public_catalog(api_client: TestClient) -> None:
-    _register(api_client, "owner@example.com")
+    _headers(api_client, "owner@example.com")
     owner = _headers(api_client, "owner@example.com")
     seller = _create_seller(api_client, owner)
     created = api_client.post(
@@ -118,6 +106,53 @@ def test_hide_removes_product_from_public_catalog(api_client: TestClient) -> Non
     assert api_client.get(f"/api/v1/products/{product_id}").status_code == 404
 
 
+def test_product_create_strips_xss_from_stored_name(api_client: TestClient) -> None:
+    _headers(api_client, "owner@example.com")
+    owner = _headers(api_client, "owner@example.com")
+    seller = _create_seller(api_client, owner)
+    created = api_client.post(
+        f"/api/v1/sellers/{seller['id']}/products",
+        json={
+            "sku": "SKU-XSS",
+            "name": "<script>alert(1)</script>Coffee",
+            "description": "<b>Rich</b>",
+            "price": "10.00",
+            "stock": 3,
+        },
+        headers=owner,
+    )
+    assert created.status_code == 202
+    product_id = created.json()["product_id"]
+
+    public = api_client.get(f"/api/v1/products/{product_id}")
+    assert public.status_code == 200
+    body = public.json()
+    assert "<" not in body["name"]
+    assert "script" not in body["name"].lower()
+    assert "Coffee" in body["name"]
+    assert "<" not in body["description"]
+
+
+def test_product_create_rejects_javascript_image_url(api_client: TestClient) -> None:
+    _headers(api_client, "owner@example.com")
+    owner = _headers(api_client, "owner@example.com")
+    seller = _create_seller(api_client, owner)
+    created = api_client.post(
+        f"/api/v1/sellers/{seller['id']}/products",
+        json={
+            "sku": "SKU-BAD-IMG",
+            "name": "Coffee",
+            "description": "Safe",
+            "price": "10.00",
+            "stock": 3,
+            "image_url": "javascript:alert(1)",
+        },
+        headers=owner,
+    )
+    assert created.status_code == 400
+    assert created.json()["code"] == "invalid_product"
+
+
 def test_seeded_catalog_still_supports_anonymous_checkout(api_client: TestClient) -> None:
     api_client.put(
         "/api/v1/cart/items",
@@ -126,4 +161,4 @@ def test_seeded_catalog_still_supports_anonymous_checkout(api_client: TestClient
     checkout = api_client.post("/api/v1/cart/checkout")
 
     assert checkout.status_code == 201
-    assert checkout.json()["user_id"] is None
+    assert checkout.json()["customer_id"] is None

@@ -28,9 +28,15 @@ class Settings(BaseSettings):
     session_cookie_name: str = "shekel_session"
     session_ttl_seconds: int = 60 * 60 * 24 * 7
 
-    jwt_secret: str = "change-me-jwt-local"
-    jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 60
+    keycloak_issuer: str = "memory://"
+    keycloak_audience: str = "shekel-api"
+    keycloak_realm: str = "shekel"
+    keycloak_test_secret: str = "change-me-oidc-test-at-least-32-bytes"
+    keycloak_admin_url: str = "http://localhost:8080"
+    keycloak_admin_client_id: str = "shekel-api"
+    keycloak_admin_client_secret: str = ""
+
+    elasticsearch_url: str = "memory://"
 
     http_timeout_seconds: float = 5.0
     http_max_retries: int = 3

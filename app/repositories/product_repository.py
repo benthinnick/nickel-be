@@ -101,9 +101,7 @@ class InMemoryProductRepository:
 
     async def list_active(self, *, limit: int, offset: int) -> tuple[list[Product], int]:
         active = [
-            product
-            for product in self._products.values()
-            if product.status == ProductStatus.ACTIVE
+            product for product in self._products.values() if product.status == ProductStatus.ACTIVE
         ]
         active.sort(key=lambda product: product.name)
         return active[offset : offset + limit], len(active)
@@ -145,11 +143,7 @@ class SqlProductRepository:
             select(func.count()).select_from(ProductRow).where(filters)
         )
         result = await self._session.scalars(
-            select(ProductRow)
-            .where(filters)
-            .order_by(ProductRow.name)
-            .offset(offset)
-            .limit(limit)
+            select(ProductRow).where(filters).order_by(ProductRow.name).offset(offset).limit(limit)
         )
         return [_to_product(row) for row in result.all()], int(total or 0)
 
@@ -165,11 +159,7 @@ class SqlProductRepository:
             select(func.count()).select_from(ProductRow).where(filters)
         )
         result = await self._session.scalars(
-            select(ProductRow)
-            .where(filters)
-            .order_by(ProductRow.name)
-            .offset(offset)
-            .limit(limit)
+            select(ProductRow).where(filters).order_by(ProductRow.name).offset(offset).limit(limit)
         )
         return [_to_product(row) for row in result.all()], int(total or 0)
 

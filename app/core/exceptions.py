@@ -26,20 +26,6 @@ class ForbiddenError(AppError):
         super().__init__(message, code=code)
 
 
-class EmailAlreadyTakenError(ConflictError):
-    def __init__(self, email: str) -> None:
-        super().__init__(
-            f"Email {email} is already registered",
-            code="email_already_taken",
-        )
-        self.email = email
-
-
-class InvalidCredentialsError(UnauthorizedError):
-    def __init__(self) -> None:
-        super().__init__("Invalid email or password", code="invalid_credentials")
-
-
 class ProductNotFoundError(NotFoundError):
     def __init__(self, product_id: UUID) -> None:
         super().__init__(
@@ -58,11 +44,11 @@ class SellerNotFoundError(NotFoundError):
         self.seller_id = seller_id
 
 
-class UserNotFoundError(NotFoundError):
+class CustomerNotFoundError(NotFoundError):
     def __init__(self, email: str) -> None:
         super().__init__(
-            f"User {email} not found",
-            code="user_not_found",
+            f"Customer {email} not found",
+            code="customer_not_found",
         )
         self.email = email
 
@@ -77,12 +63,12 @@ class SkuAlreadyTakenError(ConflictError):
 
 
 class AlreadySellerMemberError(ConflictError):
-    def __init__(self, user_id: UUID) -> None:
+    def __init__(self, customer_id: UUID) -> None:
         super().__init__(
-            f"User {user_id} is already a member of this seller",
+            f"Customer {customer_id} is already a member of this seller",
             code="already_seller_member",
         )
-        self.user_id = user_id
+        self.customer_id = customer_id
 
 
 class CannotRemoveLastOwnerError(ConflictError):
@@ -102,6 +88,11 @@ class InsufficientStockError(AppError):
         )
         self.product_id = product_id
         self.available = available
+
+
+class InvalidProductError(AppError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="invalid_product")
 
 
 class CartEmptyError(AppError):

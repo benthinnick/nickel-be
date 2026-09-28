@@ -23,7 +23,7 @@ class OrderService:
         self,
         *,
         session_id: str,
-        user_id: UUID | None = None,
+        customer_id: UUID | None = None,
         items: tuple[OrderItem, ...],
         currency: str,
         total: Decimal,
@@ -32,7 +32,7 @@ class OrderService:
         order = Order(
             id=uuid4(),
             session_id=session_id,
-            user_id=user_id,
+            customer_id=customer_id,
             status=OrderStatus.PENDING_PAYMENT,
             currency=currency,
             total=total,
@@ -47,8 +47,8 @@ class OrderService:
             "total": str(order.total),
             "currency": order.currency,
         }
-        if order.user_id is not None:
-            payload["user_id"] = str(order.user_id)
+        if order.customer_id is not None:
+            payload["customer_id"] = str(order.customer_id)
         await self._outbox.enqueue(
             event_type=ORDER_CREATED_EVENT,
             aggregate_id=order.id,

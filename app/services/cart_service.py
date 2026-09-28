@@ -9,7 +9,7 @@ from app.core.exceptions import (
     InvalidCartItemError,
     ProductNotFoundError,
 )
-from app.domain.models.cart import Cart, CartItem, CartOwner, session_cart_key, user_cart_key
+from app.domain.models.cart import Cart, CartItem, CartOwner, customer_cart_key, session_cart_key
 from app.domain.models.order import Order, OrderItem
 from app.domain.models.product import Product, ProductStatus
 from app.repositories.cart_repository import CartRepository
@@ -75,14 +75,14 @@ class CartService:
             await self._carts.save(cart)
             raise
 
-    async def merge_session_into_user(self, *, session_id: str, user_id: UUID) -> Cart:
+    async def merge_session_into_customer(self, *, session_id: str, customer_id: UUID) -> Cart:
         session_key = session_cart_key(session_id)
-        user_key = user_cart_key(user_id)
+        customer_key = customer_cart_key(customer_id)
         session_cart = await self._carts.pop(session_key)
-        user_cart = await self.get_cart(user_key)
+        customer_cart = await self.get_cart(customer_key)
         if session_cart is None or not session_cart.items:
-            return user_cart
-        merged_items = {item.product_id: item for item in user_cart.items}
+            return customer_cart
+        merged_items = {item.product_id: item for item in customer_cart.items}
         for item in session_cart.items:
             existing = merged_items.get(item.product_id)
             quantity = item.quantity + (existing.quantity if existing else 0)
@@ -90,7 +90,7 @@ class CartService:
                 product_id=item.product_id,
                 quantity=min(quantity, MAX_CART_ITEM_QUANTITY),
             )
-        merged = Cart(owner_key=user_key, items=tuple(merged_items.values()))
+        merged = Cart(owner_key=customer_key, items=tuple(merged_items.values()))
         await self._carts.save(merged)
         return merged
 
@@ -121,7 +121,7 @@ class CartService:
         try:
             return await self._orders.create_from_checkout(
                 session_id=owner.session_id,
-                user_id=owner.user_id,
+                customer_id=owner.customer_id,
                 items=tuple(order_items),
                 currency=DEFAULT_CURRENCY,
                 total=total,

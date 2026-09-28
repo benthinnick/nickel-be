@@ -42,7 +42,7 @@ class SellerResponse(BaseModel):
 
 class SellerMembershipResponse(BaseModel):
     seller_id: UUID
-    user_id: UUID
+    customer_id: UUID
     role: SellerRole
     created_at: datetime
 
@@ -78,7 +78,7 @@ def seller_to_response(seller: Seller) -> SellerResponse:
 def membership_to_response(membership: SellerMembership) -> SellerMembershipResponse:
     return SellerMembershipResponse(
         seller_id=membership.seller_id,
-        user_id=membership.user_id,
+        customer_id=membership.customer_id,
         role=membership.role,
         created_at=membership.created_at,
     )
@@ -123,4 +123,3 @@ def seller_product_list_to_response(
         limit=limit,
         offset=offset,
     )
-

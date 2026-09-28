@@ -27,7 +27,7 @@ class SqlOrderRepository:
         row = OrderRow(
             id=order.id,
             session_id=order.session_id,
-            user_id=order.user_id,
+            customer_id=order.customer_id,
             status=order.status.value,
             currency=order.currency,
             total=order.total,
@@ -52,9 +52,7 @@ class SqlOrderRepository:
 
     async def get_by_id(self, order_id: UUID) -> Order | None:
         result = await self._session.scalar(
-            select(OrderRow)
-            .options(selectinload(OrderRow.items))
-            .where(OrderRow.id == order_id)
+            select(OrderRow).options(selectinload(OrderRow.items)).where(OrderRow.id == order_id)
         )
         if result is None:
             return None
@@ -74,7 +72,7 @@ def _to_order(row: OrderRow) -> Order:
     return Order(
         id=row.id,
         session_id=row.session_id,
-        user_id=row.user_id,
+        customer_id=row.customer_id,
         status=OrderStatus(row.status),
         currency=row.currency,
         total=Decimal(row.total),

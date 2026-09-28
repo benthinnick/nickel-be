@@ -16,12 +16,12 @@ class Base(DeclarativeBase):
 json_type = JSON().with_variant(SQLiteJSON(), "sqlite")
 
 
-class UserRow(Base):
-    __tablename__ = "users"
+class CustomerRow(Base):
+    __tablename__ = "customers"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    keycloak_sub: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -47,9 +47,9 @@ class SellerMembershipRow(Base):
         ForeignKey("sellers.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    user_id: Mapped[UUID] = mapped_column(
+    customer_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("customers.id", ondelete="CASCADE"),
         primary_key=True,
     )
     role: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -86,9 +86,9 @@ class OrderRow(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     session_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    user_id: Mapped[UUID | None] = mapped_column(
+    customer_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("customers.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

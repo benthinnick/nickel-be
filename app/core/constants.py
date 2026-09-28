@@ -17,4 +17,8 @@ ORDER_DELIVERED_EVENT = "order_delivered"
 
 PRODUCTS_TOPIC = "shekel.products"
 PRODUCT_CREATED_EVENT = "product_created"
+PRODUCT_HIDDEN_EVENT = "product_hidden"
+PRODUCT_UNHIDDEN_EVENT = "product_unhidden"
+PRODUCTS_SEARCH_INDEX = "shekel-products"
 DEFAULT_SEED_STOCK = 100
+PRODUCT_AUTOCOMPLETE_LIMIT = 5

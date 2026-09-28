@@ -14,13 +14,15 @@ class SellerRepository(Protocol):
 
     async def get_by_id(self, seller_id: UUID) -> Seller | None: ...
 
-    async def list_for_user(self, user_id: UUID) -> list[tuple[Seller, SellerRole]]: ...
+    async def list_for_customer(self, customer_id: UUID) -> list[tuple[Seller, SellerRole]]: ...
 
     async def add_membership(self, membership: SellerMembership) -> None: ...
 
-    async def remove_membership(self, seller_id: UUID, user_id: UUID) -> None: ...
+    async def remove_membership(self, seller_id: UUID, customer_id: UUID) -> None: ...
 
-    async def get_membership(self, seller_id: UUID, user_id: UUID) -> SellerMembership | None: ...
+    async def get_membership(
+        self, seller_id: UUID, customer_id: UUID
+    ) -> SellerMembership | None: ...
 
     async def list_memberships(self, seller_id: UUID) -> list[SellerMembership]: ...
 
@@ -32,20 +34,18 @@ class SqlSellerRepository:
         self._session = session
 
     async def add(self, seller: Seller) -> None:
-        self._session.add(
-            SellerRow(id=seller.id, name=seller.name, created_at=seller.created_at)
-        )
+        self._session.add(SellerRow(id=seller.id, name=seller.name, created_at=seller.created_at))
         await self._session.flush()
 
     async def get_by_id(self, seller_id: UUID) -> Seller | None:
         row = await self._session.get(SellerRow, seller_id)
         return _to_seller(row) if row is not None else None
 
-    async def list_for_user(self, user_id: UUID) -> list[tuple[Seller, SellerRole]]:
+    async def list_for_customer(self, customer_id: UUID) -> list[tuple[Seller, SellerRole]]:
         result = await self._session.execute(
             select(SellerRow, SellerMembershipRow.role)
             .join(SellerMembershipRow, SellerMembershipRow.seller_id == SellerRow.id)
-            .where(SellerMembershipRow.user_id == user_id)
+            .where(SellerMembershipRow.customer_id == customer_id)
             .order_by(SellerRow.name)
         )
         return [(_to_seller(seller), SellerRole(role)) for seller, role in result.all()]
@@ -54,22 +54,22 @@ class SqlSellerRepository:
         self._session.add(
             SellerMembershipRow(
                 seller_id=membership.seller_id,
-                user_id=membership.user_id,
+                customer_id=membership.customer_id,
                 role=membership.role.value,
                 created_at=membership.created_at,
             )
         )
         await self._session.flush()
 
-    async def remove_membership(self, seller_id: UUID, user_id: UUID) -> None:
-        row = await self._session.get(SellerMembershipRow, (seller_id, user_id))
+    async def remove_membership(self, seller_id: UUID, customer_id: UUID) -> None:
+        row = await self._session.get(SellerMembershipRow, (seller_id, customer_id))
         if row is None:
             return
         await self._session.delete(row)
         await self._session.flush()
 
-    async def get_membership(self, seller_id: UUID, user_id: UUID) -> SellerMembership | None:
-        row = await self._session.get(SellerMembershipRow, (seller_id, user_id))
+    async def get_membership(self, seller_id: UUID, customer_id: UUID) -> SellerMembership | None:
+        row = await self._session.get(SellerMembershipRow, (seller_id, customer_id))
         return _to_membership(row) if row is not None else None
 
     async def list_memberships(self, seller_id: UUID) -> list[SellerMembership]:
@@ -105,7 +105,7 @@ def _to_membership(row: SellerMembershipRow) -> SellerMembership:
         created_at = created_at.replace(tzinfo=UTC)
     return SellerMembership(
         seller_id=row.seller_id,
-        user_id=row.user_id,
+        customer_id=row.customer_id,
         role=SellerRole(row.role),
         created_at=created_at,
     )

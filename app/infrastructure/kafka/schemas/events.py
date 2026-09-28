@@ -16,7 +16,7 @@ class EventEnvelope(BaseModel):
 class OrderCreatedPayload(BaseModel):
     order_id: UUID
     session_id: str
-    user_id: UUID | None = None
+    customer_id: UUID | None = None
     total: Decimal
     currency: str
 
@@ -51,4 +51,9 @@ class ProductCreatedPayload(BaseModel):
     currency: str
     stock: int
     image_url: str | None = None
-    created_by_user_id: UUID
+    created_by_customer_id: UUID
+
+
+class ProductVisibilityPayload(BaseModel):
+    product_id: UUID
+    seller_id: UUID

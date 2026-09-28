@@ -48,7 +48,7 @@ def test_checkout_and_payment_flow(api_client: TestClient) -> None:
     assert order.status_code == 200
     assert order.json()["status"] == "paid"
     assert "session_id" in order.json()
-    assert order.json()["user_id"] is None
+    assert order.json()["customer_id"] is None
     assert len(order.json()["items"]) == 1
     assert order.json()["items"][0]["quantity"] == 2
 
@@ -112,9 +112,7 @@ def test_payment_writes_outbox_and_handler_starts_delivery(api_client: TestClien
         factory = get_session_factory()
         async with factory() as session:
             events = await SqlOutboxRepository(session).list_unpublished(limit=20)
-        succeeded = [
-            event for event in events if event.event_type == ORDER_PAYMENT_SUCCEEDED_EVENT
-        ]
+        succeeded = [event for event in events if event.event_type == ORDER_PAYMENT_SUCCEEDED_EVENT]
         assert len(succeeded) == 1
         envelope = EventEnvelope.model_validate(succeeded[0].payload)
         await HANDLERS[ORDER_PAYMENT_SUCCEEDED_EVENT](envelope)

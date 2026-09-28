@@ -31,9 +31,7 @@ async def test_start_delivery_is_idempotent(db_session) -> None:
     first = await deliveries.start_for_order(order.id)
     second = await deliveries.start_for_order(order.id)
     unpublished = await SqlOutboxRepository(db_session).list_unpublished(limit=10)
-    delivered_events = [
-        event for event in unpublished if event.event_type == ORDER_DELIVERED_EVENT
-    ]
+    delivered_events = [event for event in unpublished if event.event_type == ORDER_DELIVERED_EVENT]
 
     assert first is not None
     assert second is not None

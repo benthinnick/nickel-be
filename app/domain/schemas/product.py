@@ -28,6 +28,10 @@ class ProductListResponse(BaseModel):
     offset: int
 
 
+class ProductAutocompleteResponse(BaseModel):
+    queries: list[str]
+
+
 def product_to_response(product: Product) -> ProductResponse:
     return ProductResponse(
         id=product.id,
