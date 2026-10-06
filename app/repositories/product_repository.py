@@ -15,6 +15,9 @@ TEA_ID = UUID("22222222-2222-4222-8222-222222222222")
 HONEY_ID = UUID("33333333-3333-4333-8333-333333333333")
 ARCHIVED_ID = UUID("44444444-4444-4444-8444-444444444444")
 DEMO_SELLER_ID = UUID("55555555-5555-4555-8555-555555555555")
+OIL_ID = UUID("66666666-6666-4666-8666-666666666666")
+TOWEL_ID = UUID("77777777-7777-4777-8777-777777777777")
+NOTEBOOK_ID = UUID("88888888-8888-4888-8888-888888888888")
 
 
 def seed_products() -> list[Product]:
@@ -50,6 +53,42 @@ def seed_products() -> list[Product]:
             name="Wildflower Honey",
             description="500g jar of wildflower honey.",
             price=Decimal("36.00"),
+            currency=DEFAULT_CURRENCY,
+            status=ProductStatus.ACTIVE,
+            stock=DEFAULT_SEED_STOCK,
+            image_url=None,
+        ),
+        Product(
+            id=OIL_ID,
+            seller_id=DEMO_SELLER_ID,
+            sku="SKU-OIL-1000",
+            name="Galilee Olive Oil",
+            description="1L tin of cold-pressed olive oil.",
+            price=Decimal("48.00"),
+            currency=DEFAULT_CURRENCY,
+            status=ProductStatus.ACTIVE,
+            stock=DEFAULT_SEED_STOCK,
+            image_url=None,
+        ),
+        Product(
+            id=TOWEL_ID,
+            seller_id=DEMO_SELLER_ID,
+            sku="SKU-TOWEL-LINEN",
+            name="Linen Bath Towel",
+            description="Stonewashed unbleached linen towel.",
+            price=Decimal("92.00"),
+            currency=DEFAULT_CURRENCY,
+            status=ProductStatus.ACTIVE,
+            stock=DEFAULT_SEED_STOCK,
+            image_url=None,
+        ),
+        Product(
+            id=NOTEBOOK_ID,
+            seller_id=DEMO_SELLER_ID,
+            sku="SKU-NOTE-LINEN",
+            name="Linen Notebook",
+            description="Plain pages with a stitched spine.",
+            price=Decimal("22.00"),
             currency=DEFAULT_CURRENCY,
             status=ProductStatus.ACTIVE,
             stock=DEFAULT_SEED_STOCK,
@@ -195,9 +234,6 @@ class SqlProductRepository:
 
 
 async def seed_demo_catalog(session: AsyncSession) -> None:
-    existing = await session.get(ProductRow, COFFEE_ID)
-    if existing is not None:
-        return
     now = datetime.now(UTC)
     if await session.get(SellerRow, DEMO_SELLER_ID) is None:
         session.add(SellerRow(id=DEMO_SELLER_ID, name="Demo Seller", created_at=now))

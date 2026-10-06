@@ -11,10 +11,10 @@ def test_list_products_returns_active_catalog(api_client: TestClient) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["total"] == 3
+    assert body["total"] == 6
     assert body["limit"] == 20
     assert body["offset"] == 0
-    assert len(body["items"]) == 3
+    assert len(body["items"]) == 6
     assert all(item["status"] == "active" for item in body["items"])
     assert str(ARCHIVED_ID) not in {item["id"] for item in body["items"]}
 
@@ -24,7 +24,7 @@ def test_list_products_paginates(api_client: TestClient) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["total"] == 3
+    assert body["total"] == 6
     assert body["limit"] == 1
     assert len(body["items"]) == 1
 

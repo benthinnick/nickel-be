@@ -15,7 +15,7 @@ async def test_list_active_excludes_inactive() -> None:
     ids = {product.id for product in products}
     assert ARCHIVED_ID not in ids
     assert COFFEE_ID in ids
-    assert total == 3
+    assert total == 6
     assert all(product.status == ProductStatus.ACTIVE for product in products)
 
 
@@ -25,7 +25,7 @@ async def test_list_active_applies_limit_and_offset() -> None:
     first_page, total = await repository.list_active(limit=1, offset=0)
     second_page, _ = await repository.list_active(limit=1, offset=1)
 
-    assert total == 3
+    assert total == 6
     assert len(first_page) == 1
     assert len(second_page) == 1
     assert first_page[0].id != second_page[0].id

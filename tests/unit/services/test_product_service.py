@@ -20,7 +20,7 @@ async def test_list_products_returns_only_active() -> None:
 
     products, total = await service.list_products(limit=20, offset=0)
 
-    assert total == 3
+    assert total == 6
     assert all(product.id != ARCHIVED_ID for product in products)
 
 
