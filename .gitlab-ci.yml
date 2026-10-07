@@ -17,7 +17,7 @@ publish:
   script:
     - docker build -t shekel-backend:$CI_COMMIT_SHORT_SHA .
     - kind load docker-image shekel-backend:$CI_COMMIT_SHORT_SHA --name shekel
-    - (Get-Content deploy/kustomization.yaml) -replace 'newTag:.*', "newTag: $CI_COMMIT_SHORT_SHA" | Set-Content deploy/kustomization.yaml
+    - '(Get-Content deploy/kustomization.yaml) -replace ''newTag:.*'', "newTag: $CI_COMMIT_SHORT_SHA" | Set-Content deploy/kustomization.yaml'
     - git config user.email "ci@localhost"
     - git config user.name "ci"
     - git add deploy/kustomization.yaml
