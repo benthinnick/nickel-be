@@ -6,4 +6,4 @@ resources:
 images:
   - name: shekel-backend
     newName: shekel-backend
-    newTag: 07616662
+    newTag: d6e7100b
