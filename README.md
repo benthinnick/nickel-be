@@ -128,3 +128,17 @@ docker compose --profile search up
 ```
 
 Set `ELASTICSEARCH_URL=http://elasticsearch:9200` (or `http://localhost:9200` when the app runs on the host). The default `memory://` keeps search in-process without Elasticsearch.
+
+## Roadmap
+
+- Split the monolith into microservices behind an API gateway.
+- Generate API clients and event contracts from the service schemas.
+- Replace the stub delivery flow with a delivery system.
+- Add an inventory system for stock across sellers.
+- Store and serve product video.
+- Add ratings and comments on products.
+- Integrate a payment provider in place of the stub.
+- Send email notifications for orders, payments, and delivery.
+- Build an analytics ETL/ELT pipeline from orders, catalog, and search events.
+- Add observability: metrics, traces, and logs across services.
+- Support discounts on products and orders.
