@@ -5,4 +5,4 @@ resources:
 images:
   - name: shekel-backend
     newName: shekel-backend
-    newTag: bootstrap
+    newTag: 07616662
