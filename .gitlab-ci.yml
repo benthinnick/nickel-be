@@ -7,13 +7,13 @@ check:
   script:
     - echo "checks passed"
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
 
 publish:
   stage: publish
   needs: [check]
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
   script:
     - docker build -t shekel-backend:$CI_COMMIT_SHORT_SHA .
     - kind load docker-image shekel-backend:$CI_COMMIT_SHORT_SHA --name shekel
@@ -22,4 +22,4 @@ publish:
     - git config user.name "ci"
     - git add deploy/kustomization.yaml
     - git commit -m "Set backend image to $CI_COMMIT_SHORT_SHA [skip ci]"
-    - git push "http://gitlab-ci-token:$CI_JOB_TOKEN@gitlab.127.0.0.1.nip.io:8929/shekel/backend.git" HEAD:main
+    - git push "http://gitlab-ci-token:$CI_JOB_TOKEN@gitlab.127.0.0.1.nip.io:8929/marketplace/shekel-be.git" HEAD:master
