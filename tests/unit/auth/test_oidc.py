@@ -8,7 +8,7 @@ from app.infrastructure.auth.oidc import TokenVerifier, encode_test_token
 def _settings() -> Settings:
     return Settings(
         keycloak_issuer="memory://",
-        keycloak_audience="shekel-api",
+        keycloak_audience="nickel-api",
         keycloak_test_secret="unit-oidc-secret-at-least-32-bytes",
     )
 

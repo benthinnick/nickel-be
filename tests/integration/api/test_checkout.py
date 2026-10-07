@@ -38,7 +38,7 @@ def test_get_cart_sets_session_cookie(api_client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"items": []}
-    assert "shekel_session" in response.cookies
+    assert "nickel_session" in response.cookies
 
 
 def test_checkout_and_payment_flow(api_client: TestClient) -> None:

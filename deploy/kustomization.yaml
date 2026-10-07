@@ -1,9 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: shekel
+namespace: nickel
 resources:
   - deployment.yaml
 images:
-  - name: shekel-backend
-    newName: shekel-backend
+  - name: nickel-backend
+    newName: nickel-backend
     newTag: 1c84f268

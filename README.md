@@ -1,6 +1,6 @@
-# Shekel Backend
+# Nickel Backend
 
-Modular FastAPI monolith for the Shekel MVP. Products, customers, sellers, orders, payments, deliveries, and the transactional outbox persist in **PostgreSQL**. Login identity lives in **Keycloak**. Carts live in **Redis**.
+Modular FastAPI monolith for the Nickel MVP. Products, customers, sellers, orders, payments, deliveries, and the transactional outbox persist in **PostgreSQL**. Login identity lives in **Keycloak**. Carts live in **Redis**.
 
 ## Requirements
 
@@ -19,7 +19,7 @@ copy .env.example .env
 
 On macOS/Linux, activate with `source .venv/bin/activate` and copy env with `cp .env.example .env`.
 
-Default `DATABASE_URL` is Postgres (`postgresql+asyncpg://shekel:shekel@localhost:5432/shekel`). Tables are created on startup.
+Default `DATABASE_URL` is Postgres (`postgresql+asyncpg://nickel:nickel@localhost:5432/nickel`). Tables are created on startup.
 
 ## Run
 
@@ -43,15 +43,15 @@ Default `KEYCLOAK_ISSUER=memory://` accepts HS256 test tokens without Docker. Fo
 docker compose --profile sso up
 ```
 
-Then set `KEYCLOAK_ISSUER=http://localhost:8080/realms/shekel` and `KEYCLOAK_AUDIENCE=shekel-api`. Keycloak uses its own Postgres (`keycloak-postgres`) and can run without the app. Realm `shekel` includes public client `shekel-web` (SSO) and confidential client `shekel-api` (audience + admin lookup). Dev user: `ada@example.com` / `secret123`.
+Then set `KEYCLOAK_ISSUER=http://localhost:8080/realms/nickel` and `KEYCLOAK_AUDIENCE=nickel-api`. Keycloak uses its own Postgres (`keycloak-postgres`) and can run without the app. Realm `nickel` includes public client `nickel-web` (SSO) and confidential client `nickel-api` (audience + admin lookup). Dev user: `ada@example.com` / `secret123`.
 
-Cart and checkout are public. A valid Bearer token uses Redis key `customer:{id}`; otherwise the signed `shekel_session` cookie uses `session:{id}`. The first authenticated request that still has a session cookie merges the session cart into the customer cart.
+Cart and checkout are public. A valid Bearer token uses Redis key `customer:{id}`; otherwise the signed `nickel_session` cookie uses `session:{id}`. The first authenticated request that still has a session cookie merges the session cart into the customer cart.
 
 ## Sellers and RBAC
 
 Any logged-in customer can create a seller and becomes **owner**. Owners invite or remove members (by email: local customer cache, then Keycloak Admin). **Owners and members** can create products, adjust stock, and hide/unhide that seller's catalog. Non-members get **403**.
 
-Product **create** does not write the row in the HTTP handler. `POST /api/v1/sellers/{id}/products` authorizes, writes `product_created` to the outbox (`shekel.products`), and returns **202** `{product_id, event_id}`. A Kafka consumer inserts the product. When `KAFKA_ENABLED=false` (local and tests), the same handler runs in-process after commit.
+Product **create** does not write the row in the HTTP handler. `POST /api/v1/sellers/{id}/products` authorizes, writes `product_created` to the outbox (`nickel.products`), and returns **202** `{product_id, event_id}`. A Kafka consumer inserts the product. When `KAFKA_ENABLED=false` (local and tests), the same handler runs in-process after commit.
 
 Product **create** sanitizes `name`, `description`, and `sku` (HTML tags stripped and text escaped) and rejects non-`http`/`https` `image_url` values. Public `GET /api/v1/products` stays unauthenticated and lists **active** products only. Hidden products are `inactive` and 404 on the public API. Cart add/checkout reject quantities above stock; checkout decrements stock.
 

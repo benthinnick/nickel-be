@@ -15,7 +15,7 @@ def api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("REDIS_URL", "fakeredis://")
     monkeypatch.setenv("SESSION_SECRET", "test-session-secret")
     monkeypatch.setenv("KEYCLOAK_ISSUER", "memory://")
-    monkeypatch.setenv("KEYCLOAK_AUDIENCE", "shekel-api")
+    monkeypatch.setenv("KEYCLOAK_AUDIENCE", "nickel-api")
     monkeypatch.setenv("KEYCLOAK_TEST_SECRET", "test-oidc-secret-at-least-32-bytes")
     monkeypatch.setenv("ELASTICSEARCH_URL", "memory://")
     get_settings.cache_clear()

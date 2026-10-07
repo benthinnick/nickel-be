@@ -10,30 +10,30 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "shekel-backend"
+    app_name: str = "nickel-backend"
     app_env: str = "local"
     log_level: str = "INFO"
 
     kafka_enabled: bool = False
     kafka_brokers: str = "localhost:9092"
-    kafka_client_id: str = "shekel-backend"
-    kafka_group_id: str = "shekel-app"
+    kafka_client_id: str = "nickel-backend"
+    kafka_group_id: str = "nickel-app"
 
-    database_url: str = "postgresql+asyncpg://shekel:shekel@localhost:5432/shekel"
+    database_url: str = "postgresql+asyncpg://nickel:nickel@localhost:5432/nickel"
     outbox_poll_interval_seconds: float = 1.0
 
     redis_url: str = "redis://localhost:6379/0"
 
     session_secret: str = "change-me-local"
-    session_cookie_name: str = "shekel_session"
+    session_cookie_name: str = "nickel_session"
     session_ttl_seconds: int = 60 * 60 * 24 * 7
 
     keycloak_issuer: str = "memory://"
-    keycloak_audience: str = "shekel-api"
-    keycloak_realm: str = "shekel"
+    keycloak_audience: str = "nickel-api"
+    keycloak_realm: str = "nickel"
     keycloak_test_secret: str = "change-me-oidc-test-at-least-32-bytes"
     keycloak_admin_url: str = "http://localhost:8080"
-    keycloak_admin_client_id: str = "shekel-api"
+    keycloak_admin_client_id: str = "nickel-api"
     keycloak_admin_client_secret: str = ""
 
     elasticsearch_url: str = "memory://"

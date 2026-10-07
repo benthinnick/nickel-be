@@ -15,11 +15,11 @@ publish:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
   script:
-    - docker build -t shekel-backend:$CI_COMMIT_SHORT_SHA .
-    - kind load docker-image shekel-backend:$CI_COMMIT_SHORT_SHA --name shekel
+    - docker build -t nickel-backend:$CI_COMMIT_SHORT_SHA .
+    - kind load docker-image nickel-backend:$CI_COMMIT_SHORT_SHA --name shekel
     - '(Get-Content deploy/kustomization.yaml) -replace ''newTag:.*'', "newTag: $CI_COMMIT_SHORT_SHA" | Set-Content deploy/kustomization.yaml'
     - git config user.email "ci@localhost"
     - git config user.name "ci"
     - git add deploy/kustomization.yaml
     - git commit -m "Set backend image to $CI_COMMIT_SHORT_SHA [skip ci]"
-    - git push "http://gitlab-ci-token:$CI_JOB_TOKEN@gitlab.127.0.0.1.nip.io:8929/marketplace/shekel-be.git" HEAD:master
+    - git push "http://gitlab-ci-token:$CI_JOB_TOKEN@gitlab.127.0.0.1.nip.io:8929/marketplace/nickel-be.git" HEAD:master

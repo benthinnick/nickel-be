@@ -5,7 +5,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.core.config import Settings, get_settings
 
-_SESSION_SALT = "shekel-session"
+_SESSION_SALT = "nickel-session"
 
 
 def session_serializer(settings: Settings | None = None) -> URLSafeTimedSerializer:

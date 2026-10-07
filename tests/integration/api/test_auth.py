@@ -41,7 +41,7 @@ def test_wrong_issuer_token_is_rejected(api_client: TestClient) -> None:
     token = encode_test_token(
         subject="ada",
         email="ada@example.com",
-        issuer="http://evil.example/realms/shekel",
+        issuer="http://evil.example/realms/nickel",
     )
     response = api_client.get(
         "/api/v1/customers/me",

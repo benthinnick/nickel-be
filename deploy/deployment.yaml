@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: shekel-backend:bootstrap
+          image: nickel-backend:bootstrap
           imagePullPolicy: Never
           ports:
             - containerPort: 8000
@@ -30,7 +30,7 @@ spec:
                   name: redis
                   key: password
             - name: DATABASE_URL
-              value: postgresql+asyncpg://shekel:$(POSTGRES_PASSWORD)@postgresql.infrastructure.svc.cluster.local:5432/shekel
+              value: postgresql+asyncpg://nickel:$(POSTGRES_PASSWORD)@postgresql.infrastructure.svc.cluster.local:5432/nickel
             - name: REDIS_URL
               value: redis://:$(REDIS_PASSWORD)@redis-master.infrastructure.svc.cluster.local:6379/0
             - name: KAFKA_ENABLED

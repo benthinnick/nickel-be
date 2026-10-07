@@ -8,7 +8,7 @@ services:
     environment:
       APP_ENV: local
       KAFKA_ENABLED: "false"
-      DATABASE_URL: postgresql+asyncpg://shekel:shekel@postgres:5432/shekel
+      DATABASE_URL: postgresql+asyncpg://nickel:nickel@postgres:5432/nickel
       REDIS_URL: redis://redis:6379/0
     depends_on:
       - postgres
@@ -19,9 +19,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: shekel
-      POSTGRES_PASSWORD: shekel
-      POSTGRES_DB: shekel
+      POSTGRES_USER: nickel
+      POSTGRES_PASSWORD: nickel
+      POSTGRES_DB: nickel
 
   redis:
     image: redis:7-alpine
