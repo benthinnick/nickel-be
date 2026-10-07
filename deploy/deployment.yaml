@@ -18,6 +18,41 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 8000
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis
+                  key: password
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://shekel:$(POSTGRES_PASSWORD)@postgresql.infrastructure.svc.cluster.local:5432/shekel
+            - name: REDIS_URL
+              value: redis://:$(REDIS_PASSWORD)@redis-master.infrastructure.svc.cluster.local:6379/0
+            - name: KAFKA_ENABLED
+              value: "true"
+            - name: KAFKA_BROKERS
+              value: kafka.infrastructure.svc.cluster.local:9092
+            - name: ELASTICSEARCH_URL
+              value: http://elasticsearch.infrastructure.svc.cluster.local:9200
+            - name: KEYCLOAK_ISSUER
+              value: memory://
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
 ---
 apiVersion: v1
 kind: Service
