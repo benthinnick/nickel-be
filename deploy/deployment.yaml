@@ -51,7 +51,7 @@ spec:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 60
             periodSeconds: 20
 ---
 apiVersion: v1
